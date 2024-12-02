@@ -1,17 +1,21 @@
-mod variables;
-pub use variables::{Var, X, Y, Z};
+pub mod variables;
+//pub use variables::{Var, X, Y, Z};
 
 mod untyped_monome;
-pub use untyped_monome::UntypedMonome;
+pub mod monomes {
+    pub use crate::untyped_monome::UntypedMonome;
+}
 
 mod untyped_polynome;
-pub use untyped_polynome::UntypedPolynome;
-
-use num_traits::Pow;
+pub mod polynomes {
+    pub use crate::untyped_polynome::UntypedPolynome;
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use variables::{X, Y, Z};
+    use num_traits::Pow;
 
     #[test]
     fn untyped_monomes() {

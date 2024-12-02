@@ -1,16 +1,8 @@
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub struct Var {
-    pub index: usize,
-}
+pub struct Var(pub usize);
 
-pub const X: Var = Var {
-    index: 0usize,
-};
+pub const X : Var = Var(0usize);
 
-pub const Y: Var = Var {
-    index: 1usize,
-};
+pub const Y : Var = Var(1usize);
 
-pub const Z: Var = Var {
-    index: 2usize,
-};
+pub const Z : Var = Var(2usize);
