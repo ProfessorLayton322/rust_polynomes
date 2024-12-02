@@ -2,36 +2,86 @@ use crate::variables::Var;
 
 use std::fmt::Debug;
 use std::ops::Mul;
-use std::cmp::Eq;
+use std::cmp::{Eq, Ordering};
 use num_traits::pow::Pow;
 use std::vec::Vec;
 use std::convert::From;
 use std::default::Default;
 
+/// Constructs monome from variable
+///
+/// # Examples
+///
+/// ``
+/// use rust_polynomes::variables::{Var, X, Y};
+/// use rust_polynomes::monomes::UntypedMonome;
+///
+/// let monome : UntypedMonome = X * Y * Y * Z;
+/// assert_eq!(monome, Y * Z * Z * X);
+/// ```
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct UntypedMonome {
     //invariant - powers are always sorted and non-repeating by variable
-    powers: Vec<(usize, usize)>,
+    pub powers: Vec<(usize, usize)>,
 }
 
+/// Constructs monome from variable
+///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::variables::{Var, X};
+/// use rust_polynomes::monomes::UntypedMonome;
+///
+/// let monome : UntypedMonome = X.into();
+/// assert_eq!(monome, UntypedMonome {powers: vec![(0, 1)]} );
+///
+/// let another : UntypedMonome = Var(100usize).into();
+/// assert_eq!(another, UntypedMonome {powers: vec![(100, 1)]} );
+/// ```
 impl From<Var> for UntypedMonome {
     fn from(var: Var) -> Self {
         Self {
-            powers: vec![(var.index, 1)],
+            powers: vec![(var.0, 1)],
         }
     }
 }
 
+/// Raise variable to power
+///
+/// # Examples
+///
+/// ```
+/// use num_traits::pow::Pow;
+/// use rust_polynomes::variables::{Var, X};
+/// use rust_polynomes::monomes::UntypedMonome;
+///
+/// let monome : UntypedMonome = X.pow(4);
+/// assert_eq!(monome, UntypedMonome {powers: vec![(0, 4)]} );
+/// ```
 impl Pow<usize> for Var {
     type Output = UntypedMonome;
 
     fn pow(self, pow: usize) -> Self::Output {
         UntypedMonome {
-            powers: vec![(self.index, pow)],
+            powers: vec![(self.0, pow)],
         }
     }
 }
 
+/// Multiplies two monomes
+///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::variables::{X, Y};
+/// use rust_polynomes::monomes::UntypedMonome;
+///
+/// let A : UntypedMonome = X.into();
+/// let B : UntypedMonome = Y.into();
+/// assert_eq!(A * B, UntypedMonome {powers: vec![(0, 1), (1, 1)]} );
+///
+/// ```
 impl Mul<UntypedMonome> for UntypedMonome {
     type Output = Self;
 
@@ -39,20 +89,23 @@ impl Mul<UntypedMonome> for UntypedMonome {
         let mut l = 0usize;
         let mut r = 0usize;
 
-        let mut result : Vec<(usize, usize)> = vec![];
-        result.reserve(self.powers.len() + rhs.powers.len());
+        let mut result : Vec<(usize, usize)> = Vec::with_capacity(self.powers.len() + rhs.powers.len());
 
         while l < self.powers.len() && r < rhs.powers.len() {
-            if self.powers[l].0 < rhs.powers[r].0 {
-                result.push(self.powers[l]);
-                l += 1;
-            } else if self.powers[l].0 > rhs.powers[r].0 {
-                result.push(rhs.powers[r]);
-                r += 1;
-            } else {
-                result.push((self.powers[l].0, self.powers[l].1 + rhs.powers[r].1));
-                l += 1;
-                r += 1;
+            match self.powers[l].0.cmp(&rhs.powers[r].0) {
+                Ordering::Less => {
+                    result.push(self.powers[l]);
+                    l += 1;
+                }
+                Ordering::Greater => {
+                    result.push(rhs.powers[r]);
+                    r += 1;
+                }
+                Ordering::Equal => {
+                    result.push((self.powers[l].0, self.powers[l].1 + rhs.powers[r].1));
+                    l += 1;
+                    r += 1;
+                }
             }
         }
 
@@ -72,6 +125,18 @@ impl Mul<UntypedMonome> for UntypedMonome {
     }
 }
 
+/// Multiplies monome and variable
+///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::variables::{X, Y};
+/// use rust_polynomes::monomes::UntypedMonome;
+///
+/// let A : UntypedMonome = X.into();
+/// assert_eq!(A * Y, UntypedMonome {powers: vec![(0, 1), (1, 1)]} );
+///
+/// ```
 impl Mul<Var> for UntypedMonome {
     type Output = Self;
 
@@ -81,6 +146,18 @@ impl Mul<Var> for UntypedMonome {
     }
 }
 
+/// Multiplies monome and variable
+///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::variables::{X, Y};
+/// use rust_polynomes::monomes::UntypedMonome;
+///
+/// let A : UntypedMonome = X.into();
+/// assert_eq!(Y * A, UntypedMonome {powers: vec![(0, 1), (1, 1)]} );
+///
+/// ```
 impl Mul<UntypedMonome> for Var {
     type Output = UntypedMonome;
 
@@ -89,6 +166,17 @@ impl Mul<UntypedMonome> for Var {
     }
 }
 
+/// Multiplies variables into monome
+///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::variables::{X, Y, Z};
+/// use rust_polynomes::monomes::UntypedMonome;
+///
+/// assert_eq!(X * Y * X * Z, Z * X * X * Y);
+///
+/// ```
 impl Mul<Var> for Var {
     type Output = UntypedMonome;
 

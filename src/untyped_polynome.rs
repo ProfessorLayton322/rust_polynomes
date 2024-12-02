@@ -47,7 +47,7 @@ impl Add<UntypedPolynome> for UntypedPolynome {
 
     fn add(self, rhs: Self) -> Self {
         Self {
-            monomes: self.monomes.into_iter().chain(rhs.monomes.into_iter()).collect(),
+            monomes: self.monomes.into_iter().chain(rhs.monomes).collect(),
         }
     }
 }
