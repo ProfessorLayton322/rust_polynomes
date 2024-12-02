@@ -1,31 +1,33 @@
 use crate::variables::Var;
+
 use std::fmt::Debug;
 use std::ops::Mul;
 use std::cmp::Eq;
 use num_traits::pow::Pow;
 use std::vec::Vec;
 use std::convert::From;
+use std::default::Default;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct UntypedMonome {
     //invariant - powers are always sorted and non-repeating by variable
     powers: Vec<(usize, usize)>,
 }
 
-impl<const INDEX: usize> From<Var<INDEX>> for UntypedMonome {
-    fn from(_var: Var<INDEX>) -> Self {
+impl From<Var> for UntypedMonome {
+    fn from(var: Var) -> Self {
         Self {
-            powers: vec![(INDEX, 1)],
+            powers: vec![(var.index, 1)],
         }
     }
 }
 
-impl<const INDEX: usize> Pow<usize> for Var<INDEX> {
+impl Pow<usize> for Var {
     type Output = UntypedMonome;
 
     fn pow(self, pow: usize) -> Self::Output {
         UntypedMonome {
-            powers: vec![(INDEX, pow)],
+            powers: vec![(self.index, pow)],
         }
     }
 }
@@ -70,16 +72,16 @@ impl Mul<UntypedMonome> for UntypedMonome {
     }
 }
 
-impl<const INDEX: usize> Mul<Var<INDEX>> for UntypedMonome {
+impl Mul<Var> for UntypedMonome {
     type Output = Self;
 
-    fn mul(self, rhs: Var<INDEX>) -> Self::Output {
+    fn mul(self, rhs: Var) -> Self::Output {
         let rhs_monome : UntypedMonome = rhs.into();
         self * rhs_monome
     }
 }
 
-impl<const INDEX: usize> Mul<UntypedMonome> for Var<INDEX> {
+impl Mul<UntypedMonome> for Var {
     type Output = UntypedMonome;
 
     fn mul(self, rhs: UntypedMonome) -> Self::Output {
@@ -87,10 +89,10 @@ impl<const INDEX: usize> Mul<UntypedMonome> for Var<INDEX> {
     }
 }
 
-impl <const A: usize, const B: usize> Mul<Var<A>> for Var<B> {
+impl Mul<Var> for Var {
     type Output = UntypedMonome;
 
-    fn mul(self, rhs: Var<A>) -> Self::Output {
+    fn mul(self, rhs: Var) -> Self::Output {
         let rhs_monome : UntypedMonome = rhs.into();
         self * rhs_monome
     }
