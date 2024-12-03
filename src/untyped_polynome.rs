@@ -118,7 +118,7 @@ impl<T : Into<UntypedPolynome>> Mul<T> for UntypedPolynome {
     }
 }
 
-/// Multiply polynomes
+/// Raise polynom to power 
 ///
 /// # Examples
 ///

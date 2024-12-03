@@ -127,7 +127,7 @@ impl<T: Into<UntypedMonome>> Mul<T> for UntypedMonome {
     }
 }
 
-/// Multiplies two monomes
+/// Multiplies variable and a monome
 ///
 /// # Examples
 ///
@@ -143,5 +143,28 @@ impl<T: Into<UntypedMonome>> Mul<T> for Var {
     fn mul(self, rhs: T) -> Self::Output {
         let monome : UntypedMonome = self.into();
         monome * rhs
+    }
+}
+
+/// Raise monome to power
+///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::variables::{X, Y, Z};
+/// use rust_polynomes::monomes::UntypedMonome;
+///
+/// use num_traits::pow::Pow;
+///
+/// let monome = (X * Y * Z).pow(3usize);
+/// assert_eq!(monome, X.pow(3usize) * Y.pow(3usize) * Z.pow(3usize));
+/// ```
+impl Pow<usize> for UntypedMonome {
+    type Output = Self;
+
+    fn pow(self, pow: usize) -> Self {
+        Self {
+            powers: self.powers.into_iter().map(|factor| (factor.0, factor.1 * pow)).collect(),
+        }
     }
 }
