@@ -1,0 +1,8 @@
+[package]
+name = "rust_polynomes"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+duplicate = "2.0.0"
+num-traits = "0.2.19"
