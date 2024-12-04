@@ -1,20 +1,23 @@
 pub mod variables;
-//pub use variables::{Var, X, Y, Z};
 
 mod traits;
 
-mod typed_monome;
-pub use typed_monome::Coeff;
-
 mod untyped_monome;
+mod typed_monome;
+
 pub mod monomes {
     pub use crate::untyped_monome::UntypedMonome;
     pub use crate::typed_monome::TypedMonome;
 }
 
+pub use typed_monome::Coeff;
+
 mod untyped_polynome;
+mod typed_polynome;
+
 pub mod polynomes {
     pub use crate::untyped_polynome::UntypedPolynome;
+    pub use crate::typed_polynome::TypedPolynome;
 }
 
 #[cfg(test)]

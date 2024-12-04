@@ -20,6 +20,27 @@ pub struct TypedMonome<T: CommutativeSemiring> {
     pub vars: UntypedMonome,
 }
 
+/// Coeff to monome 
+///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::Coeff;
+/// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
+///
+/// let monome : TypedMonome<f32> = Coeff(2.0f32).into();
+/// assert_eq!(monome, TypedMonome {coeff: 2.0f32, vars: UntypedMonome::default()} );
+/// ```
+impl<T: CommutativeSemiring> From<Coeff<T>> for TypedMonome<T> {
+    fn from(val: Coeff<T>) -> Self {
+        Self {
+            coeff: val.0,
+            vars: UntypedMonome::default(),
+        }
+    }
+}
+
+impl<T: CommutativeSemiring> TypedMonome<T> {
 /// Typed monome constructor
 ///
 /// # Examples
@@ -31,30 +52,9 @@ pub struct TypedMonome<T: CommutativeSemiring> {
 /// assert_eq!(typed.coeff, 3.0f32);
 /// assert_eq!(typed.vars, UntypedMonome::default() );
 /// ```
-impl<T: CommutativeSemiring> TypedMonome<T> {
     pub fn new(val: T) -> Self {
         Self {
             coeff: val,
-            vars: UntypedMonome::default(),
-        }
-    }
-}
-
-/// Coefficient to monome
-///
-/// # Examples
-///
-/// ```
-/// use rust_polynomes::variables::{X, Y, Z};
-/// use rust_polynomes::{Coeff, monomes::TypedMonome};
-///
-/// let typed : TypedMonome<f32> = Coeff(3.0f32).into();
-/// assert_eq!(typed, TypedMonome::<f32>::new(3.0f32));
-/// ```
-impl<T: CommutativeSemiring> Into<TypedMonome<T>> for Coeff<T> {
-    fn into(self) -> TypedMonome<T> {
-        TypedMonome {
-            coeff: self.0,
             vars: UntypedMonome::default(),
         }
     }
