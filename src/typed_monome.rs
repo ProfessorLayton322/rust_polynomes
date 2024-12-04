@@ -3,11 +3,14 @@ use crate::untyped_monome::UntypedMonome;
 use crate::traits::CommutativeSemiring;
 
 use std::fmt::Debug;
-use std::ops::{Mul, Neg};
-use num_traits::{One, Pow};
+use std::ops::{Mul, Neg, Add};
+use num_traits::{Zero, One, Pow};
 use std::cmp::Eq;
 use std::convert::Into;
 use std::default::Default;
+use std::result::Result;
+use std::option::Option;
+use std::collections::HashMap;
 
 use duplicate::duplicate_item;
 
@@ -40,24 +43,10 @@ impl<T: CommutativeSemiring> From<Coeff<T>> for TypedMonome<T> {
     }
 }
 
-impl<T: CommutativeSemiring> TypedMonome<T> {
-/// Typed monome constructor
-///
-/// # Examples
-///
-/// ```
-/// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
-///
-/// let typed = TypedMonome::<f32>::new(3.0f32);
-/// assert_eq!(typed.coeff, 3.0f32);
-/// assert_eq!(typed.vars, UntypedMonome::default() );
-/// ```
-    pub fn new(val: T) -> Self {
-        Self {
-            coeff: val,
-            vars: UntypedMonome::default(),
-        }
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SubstitutionError {
+    RepeatingVariable(Var),
+    MissingVariable(Var),
 }
 
 /// Multiplication of variables and coefficients
@@ -238,3 +227,120 @@ impl<U: CommutativeSemiring + Neg<Output = U>> Neg for TypedMonome<U> {
         self
     }
 }
+
+impl<T: CommutativeSemiring> TypedMonome<T> {
+/// Typed monome constructor
+///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
+///
+/// let typed = TypedMonome::<f32>::new(3.0f32);
+/// assert_eq!(typed.coeff, 3.0f32);
+/// assert_eq!(typed.vars, UntypedMonome::default() );
+/// ```
+    pub fn new(val: T) -> Self {
+        Self {
+            coeff: val,
+            vars: UntypedMonome::default(),
+        }
+    }
+
+/// Typed monome substitution 
+///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::{Coeff, SubstitutionError};
+/// use rust_polynomes::variables::{X, Y};
+/// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
+///
+/// let monome = Coeff(2u32) * X * Y;
+/// assert_eq!(monome.substitute(vec![
+///     (X, 3u32),
+///     (Y, 2u32)
+/// ]).unwrap(), 12u32);
+///
+/// assert_eq!(monome.substitute(
+///     vec![(X, 1u32)]
+/// ), Err(SubstitutionError::MissingVariable(Y)));
+///
+/// assert_eq!(monome.substitute(
+///     vec![
+///         (X, 1u32),
+///         (Y, 1u32),
+///         (Y, 1u32),
+///     ]
+/// ), Err(SubstitutionError::RepeatingVariable(Y)));
+/// ```
+    pub fn substitute<U: Mul<Output=U> + One + Sized + Clone>(&self, substitute_list: Vec<(Var, U)>) 
+    -> Result<<T as Mul<U>>::Output, SubstitutionError>
+    where
+        T: Mul<U>,
+    {
+        let mut var_map = HashMap::<usize, U>::default();
+
+        for (var, val) in substitute_list.iter() {
+            if let Some(v) = var_map.insert(var.0, val.clone()) {
+                return Err(SubstitutionError::RepeatingVariable(*var));
+            }
+        }
+
+        let mut acc = <U as One>::one();
+
+        for (index, power) in self.vars.powers.iter() {
+            let val = if let Some(val) = var_map.get(index) {
+                val
+            } else {
+                return Err(SubstitutionError::MissingVariable(Var(*index)));
+            };
+
+            for _ in 0..*power {
+                acc = acc * val.clone();
+            }
+        }
+
+        Ok(self.coeff * acc)
+    }
+
+/// Typed monome substitution 
+///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::Coeff;
+/// use rust_polynomes::variables::{X, Y};
+/// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
+///
+/// let mut monome = Coeff(3u32) * X * Y * X;
+/// assert_eq!(monome.extract_variable(X), 2usize);
+/// assert_eq!(monome, TypedMonome {
+///     coeff: 3u32,
+///     vars: UntypedMonome {
+///         powers: vec![(1, 1)],
+///     }
+/// })
+/// ```
+    pub fn extract_variable(&mut self, var: Var) -> usize {
+        let mut counter = 0usize;
+        let counter_ref = &mut counter;
+
+        *self = Self {
+            coeff: self.coeff,
+            vars: UntypedMonome {
+                powers: self.vars.powers.iter().filter_map(|link| {
+                    let (index, power) = *link;
+                    if index == var.0 {
+                        *counter_ref += power;
+                        return None;
+                    }
+                    Some((index, power))
+                }).collect(),
+            },
+        };
+
+        counter
+    }
+}
+

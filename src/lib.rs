@@ -11,6 +11,7 @@ pub mod monomes {
 }
 
 pub use typed_monome::Coeff;
+pub use typed_monome::SubstitutionError;
 
 mod untyped_polynome;
 mod typed_polynome;

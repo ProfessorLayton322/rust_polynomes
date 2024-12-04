@@ -1,8 +1,7 @@
 use crate::variables::Var;
 use crate::untyped_monome::UntypedMonome;
 use crate::untyped_polynome::UntypedPolynome;
-use crate::typed_monome::Coeff;
-use crate::typed_monome::TypedMonome;
+use crate::typed_monome::{Coeff, TypedMonome, SubstitutionError};
 use crate::traits::CommutativeSemiring;
 
 use std::fmt::Debug;
@@ -74,11 +73,11 @@ impl<U: CommutativeSemiring> Zero for TypedPolynome<U> {
 /// assert!(!TypedPolynome::<u32>::new(2u32).is_zero());
 /// ```
     fn is_zero(&self) -> bool {
-        self.monomes.iter().map(|monome| monome.coeff.is_zero()).fold(false, |acc, x| acc | x)
+        self.monomes.iter().map(|monome| monome.coeff.is_zero()).fold(true, |acc, x| acc & x)
     }
 }
 
-impl<U: CommutativeSemiring> TypedPolynome<U> {
+impl<T: CommutativeSemiring> TypedPolynome<T> {
 /// Constant polynome
 ///
 /// # Examples
@@ -91,16 +90,109 @@ impl<U: CommutativeSemiring> TypedPolynome<U> {
 /// assert_eq!(polynome.monomes[0].coeff, 6.5f32);
 /// assert_eq!(polynome.monomes[0].vars.powers.len(), 0);
 /// ```
-    pub fn new(val: U) -> Self {
+    pub fn new(val: T) -> Self {
         Self {
             monomes: vec![
-                TypedMonome::<U>::new(val)
+                TypedMonome::<T>::new(val)
             ],
         }
     }
 
-/// One polynome
+/// Typed monome substitution 
 ///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::{Coeff, SubstitutionError};
+/// use rust_polynomes::variables::{X, Y};
+/// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
+/// use rust_polynomes::polynomes::{UntypedPolynome, TypedPolynome};
+///
+/// let polynome = Coeff(2u32) * X + Coeff(3u32) * Y;
+/// assert_eq!(polynome.substitute(vec![
+///     (X, 3u32),
+///     (Y, 2u32)
+/// ]).unwrap(), 12u32);
+///
+/// assert_eq!(polynome.substitute(
+///     vec![(X, 1u32)]
+/// ), Err(SubstitutionError::MissingVariable(Y)));
+///
+/// assert_eq!(polynome.substitute(
+///     vec![
+///         (X, 1u32),
+///         (Y, 1u32),
+///         (Y, 1u32),
+///     ]
+/// ), Err(SubstitutionError::RepeatingVariable(Y)));
+/// ```
+    pub fn substitute<U: Mul<Output=U> + One + Sized + Clone>(&self, substitute_list: Vec<(Var, U)>) 
+    -> Result<<T as Mul<U>>::Output, SubstitutionError>
+    where
+        T: Mul<U>,
+        <T as Mul<U>>::Output : Add<Output = <T as Mul<U>>::Output> + Zero,
+    {
+        let mut acc = <<T as Mul<U>>::Output as Zero>::zero();
+
+        for monome in self.monomes.iter() {
+            acc = acc + monome.substitute(substitute_list.clone())?;
+        }
+
+        Ok(acc)
+    }
+
+/// Typed monome substitution 
+///
+/// # Examples
+///
+/// ```
+/// use rust_polynomes::{Coeff, SubstitutionError};
+/// use rust_polynomes::variables::{X, Y, Z};
+/// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
+/// use rust_polynomes::polynomes::{UntypedPolynome, TypedPolynome};
+/// use num_traits::pow::Pow;
+///
+/// let polynome = Coeff(2u32) * X * Y + Coeff(3u32) * Y;
+///
+/// let mut first = polynome.clone();
+/// first.substitute_polynome(Y, Z.into());
+/// assert_eq!(first.monomes, vec![
+///     TypedMonome {
+///         coeff: 2u32,
+///         vars: X * Z,
+///     },
+///     TypedMonome {
+///         coeff: 3u32,
+///         vars: Z.into(),
+///     }
+/// ]);
+///
+/// let reserve = first.clone();
+/// first.substitute_polynome(Y, Z.into());
+/// assert_eq!(first, reserve);
+///
+/// let mut second : TypedPolynome<i32> = X.pow(3).into();
+/// second.substitute_polynome(X, (X + Y).into());
+/// let mut expected = X.pow(3) + Coeff(3i32) * (X * X * Y + X * Y * Y) + Y.pow(3);
+/// expected.order();
+///
+/// assert_eq!(second, expected);
+/// ```
+    pub fn substitute_polynome(&mut self, var: Var, polynome: TypedPolynome<T>) where
+    {
+        *self = self.monomes.iter().map(|monome| {
+            let mut clone = monome.clone();
+            let pow = clone.extract_variable(var.clone());
+
+            if pow == 0 {
+                return clone.into();
+            }
+
+            clone * polynome.clone().pow(pow)
+        }).fold(TypedPolynome::<T>::zero(), |acc, x| acc + x);
+        self.order();
+    }
+
 /// # Examples
 ///
 /// ```
@@ -158,6 +250,9 @@ impl<U: CommutativeSemiring> TypedPolynome<U> {
                 acc
             }).into_iter().filter(|monome| !monome.coeff.is_zero()).collect(),
         };
+        if self.monomes.len() == 0 {
+            self.set_zero();
+        }
     }
 }
 
