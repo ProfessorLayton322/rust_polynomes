@@ -1,29 +1,47 @@
-use crate::variables::Var;
+use crate::traits::Semiring;
 use crate::untyped_monome::UntypedMonome;
-use crate::traits::CommutativeSemiring;
+use crate::variables::Var;
 
-use std::fmt::Debug;
-use std::ops::{Mul, Neg, Add};
-use num_traits::{Zero, One, Pow};
+use num_traits::{One, Pow};
 use std::cmp::Eq;
+use std::collections::HashMap;
 use std::convert::Into;
 use std::default::Default;
+use std::fmt::Debug;
+use std::ops::{Mul, Neg};
 use std::result::Result;
-use std::option::Option;
-use std::collections::HashMap;
 
 use duplicate::duplicate_item;
 
+///This struct is a wrapper for coefficients. When ,ultiplied with variables and monomes it results
+///in `TypedMonome` or `TypedPolynome`
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub struct Coeff<T: CommutativeSemiring> (pub T);
+pub struct Coeff<T: Semiring>(pub T);
 
+/// This struct describes a monome with a fixed type coefficient provided via multiplication with
+/// `Coeff`
+///
+/// # Usage
+///
+/// ```
+/// use rust_polynomes::Coeff;
+/// use rust_polynomes::variables::{X, Y};
+/// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
+///
+/// let monome = Coeff(2u32) * X * X * Y;
+///
+/// assert_eq!(monome.substitute(vec![
+///     (X, 3u32),
+///     (Y, 2u32)
+/// ]).unwrap(), 36u32);
+/// ```
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub struct TypedMonome<T: CommutativeSemiring> {
+pub struct TypedMonome<T: Semiring> {
     pub coeff: T,
     pub vars: UntypedMonome,
 }
 
-/// Coeff to monome 
+/// Coeff to monome
 ///
 /// # Examples
 ///
@@ -34,7 +52,7 @@ pub struct TypedMonome<T: CommutativeSemiring> {
 /// let monome : TypedMonome<f32> = Coeff(2.0f32).into();
 /// assert_eq!(monome, TypedMonome {coeff: 2.0f32, vars: UntypedMonome::default()} );
 /// ```
-impl<T: CommutativeSemiring> From<Coeff<T>> for TypedMonome<T> {
+impl<T: Semiring> From<Coeff<T>> for TypedMonome<T> {
     fn from(val: Coeff<T>) -> Self {
         Self {
             coeff: val.0,
@@ -43,9 +61,13 @@ impl<T: CommutativeSemiring> From<Coeff<T>> for TypedMonome<T> {
     }
 }
 
+///This enum type describes errors that can occur when calling `substitue` method
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SubstitutionError {
+    ///Returned in case of repeating variables in substitution list
     RepeatingVariable(Var),
+    ///Returned in case of missing variables in substitution list that are required for
+    ///substitution
     MissingVariable(Var),
 }
 
@@ -61,7 +83,7 @@ pub enum SubstitutionError {
 /// assert_eq!(monome.coeff, 3.0f32);
 /// assert_eq!(monome.vars, UntypedMonome {powers: vec![(0, 1), (1, 1), (2, 1)]} );
 /// ```
-impl<T: Into<UntypedMonome>, U : CommutativeSemiring> Mul<T> for Coeff<U> {
+impl<T: Into<UntypedMonome>, U: Semiring> Mul<T> for Coeff<U> {
     type Output = TypedMonome<U>;
 
     fn mul(self, arg: T) -> Self::Output {
@@ -85,14 +107,14 @@ impl<T: Into<UntypedMonome>, U : CommutativeSemiring> Mul<T> for Coeff<U> {
 /// assert_eq!(monome.vars, UntypedMonome {powers: vec![(0, 1), (1, 1), (2, 1)]} );
 /// ```
 #[duplicate_item(name; [UntypedMonome]; [Var])]
-impl<U : CommutativeSemiring> Mul<Coeff<U>> for name {
+impl<U: Semiring> Mul<Coeff<U>> for name {
     type Output = TypedMonome<U>;
 
     fn mul(self, arg: Coeff<U>) -> Self::Output {
         arg * self
     }
 }
- 
+
 /// Multiplication of variables and coefficients
 ///
 /// # Examples
@@ -110,7 +132,7 @@ impl<U : CommutativeSemiring> Mul<Coeff<U>> for name {
 /// assert_eq!(second.vars, UntypedMonome { powers : vec![(0, 1), (1, 1)] } );
 /// ```
 #[duplicate_item(name; [UntypedMonome]; [Var])]
-impl<U : CommutativeSemiring> Into<TypedMonome<U>> for name {
+impl<U: Semiring> Into<TypedMonome<U>> for name {
     fn into(self) -> TypedMonome<U> {
         TypedMonome {
             coeff: <U as One>::one(),
@@ -133,11 +155,11 @@ impl<U : CommutativeSemiring> Into<TypedMonome<U>> for name {
 ///
 /// assert_eq!(first * second, third);
 /// ```
-impl<U: CommutativeSemiring, T: Into<TypedMonome<U>>> Mul<T> for TypedMonome<U> {
+impl<U: Semiring, T: Into<TypedMonome<U>>> Mul<T> for TypedMonome<U> {
     type Output = TypedMonome<U>;
 
     fn mul(self, arg: T) -> Self::Output {
-        let rhs : TypedMonome<U> = arg.into();
+        let rhs: TypedMonome<U> = arg.into();
         TypedMonome {
             coeff: self.coeff * rhs.coeff,
             vars: self.vars * rhs.vars,
@@ -164,11 +186,11 @@ impl<U: CommutativeSemiring, T: Into<TypedMonome<U>>> Mul<T> for TypedMonome<U> 
 /// assert_eq!(third.vars, UntypedMonome {powers: vec![(0, 2)]} );
 /// ```
 #[duplicate_item(name; [UntypedMonome]; [Var])]
-impl<U: CommutativeSemiring> Mul<TypedMonome<U>> for name {
+impl<U: Semiring> Mul<TypedMonome<U>> for name {
     type Output = TypedMonome<U>;
 
     fn mul(self, rhs: TypedMonome<U>) -> TypedMonome<U> {
-        let lhs : TypedMonome<U> = self.into();
+        let lhs: TypedMonome<U> = self.into();
         lhs * rhs
     }
 }
@@ -188,7 +210,7 @@ impl<U: CommutativeSemiring> Mul<TypedMonome<U>> for name {
 /// assert_eq!(monome.coeff, 8.0f32);
 /// assert_eq!(monome.vars, UntypedMonome {powers: vec![(0, 3), (1, 3)]} );
 /// ```
-impl<U: CommutativeSemiring> Pow<usize> for TypedMonome<U> {
+impl<U: Semiring> Pow<usize> for TypedMonome<U> {
     type Output = Self;
 
     fn pow(self, pow: usize) -> Self::Output {
@@ -219,7 +241,7 @@ impl<U: CommutativeSemiring> Pow<usize> for TypedMonome<U> {
 /// assert_eq!(negative.coeff, -2.0f32);
 /// assert_eq!(negative.vars, UntypedMonome {powers: vec![(0, 1)] } );
 /// ```
-impl<U: CommutativeSemiring + Neg<Output = U>> Neg for TypedMonome<U> {
+impl<U: Semiring + Neg<Output = U>> Neg for TypedMonome<U> {
     type Output = Self;
 
     fn neg(mut self) -> Self::Output {
@@ -228,18 +250,18 @@ impl<U: CommutativeSemiring + Neg<Output = U>> Neg for TypedMonome<U> {
     }
 }
 
-impl<T: CommutativeSemiring> TypedMonome<T> {
-/// Typed monome constructor
-///
-/// # Examples
-///
-/// ```
-/// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
-///
-/// let typed = TypedMonome::<f32>::new(3.0f32);
-/// assert_eq!(typed.coeff, 3.0f32);
-/// assert_eq!(typed.vars, UntypedMonome::default() );
-/// ```
+impl<T: Semiring> TypedMonome<T> {
+    /// Typed monome constructor
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
+    ///
+    /// let typed = TypedMonome::<f32>::new(3.0f32);
+    /// assert_eq!(typed.coeff, 3.0f32);
+    /// assert_eq!(typed.vars, UntypedMonome::default() );
+    /// ```
     pub fn new(val: T) -> Self {
         Self {
             coeff: val,
@@ -247,42 +269,50 @@ impl<T: CommutativeSemiring> TypedMonome<T> {
         }
     }
 
-/// Typed monome substitution 
-///
-/// # Examples
-///
-/// ```
-/// use rust_polynomes::{Coeff, SubstitutionError};
-/// use rust_polynomes::variables::{X, Y};
-/// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
-///
-/// let monome = Coeff(2u32) * X * Y;
-/// assert_eq!(monome.substitute(vec![
-///     (X, 3u32),
-///     (Y, 2u32)
-/// ]).unwrap(), 12u32);
-///
-/// assert_eq!(monome.substitute(
-///     vec![(X, 1u32)]
-/// ), Err(SubstitutionError::MissingVariable(Y)));
-///
-/// assert_eq!(monome.substitute(
-///     vec![
-///         (X, 1u32),
-///         (Y, 1u32),
-///         (Y, 1u32),
-///     ]
-/// ), Err(SubstitutionError::RepeatingVariable(Y)));
-/// ```
-    pub fn substitute<U: Mul<Output=U> + One + Sized + Clone>(&self, substitute_list: Vec<(Var, U)>) 
-    -> Result<<T as Mul<U>>::Output, SubstitutionError>
+    /// Typed monome substitution
+    ///
+    /// The type of substitution values must be multiplicable with itself and the coefficient type
+    /// and must implement `One` trait
+    ///
+    /// Returns a substitution error if either the variables are repeated or some of required
+    /// variables are missing
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rust_polynomes::{Coeff, SubstitutionError};
+    /// use rust_polynomes::variables::{X, Y};
+    /// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
+    ///
+    /// let monome = Coeff(2u32) * X * Y;
+    /// assert_eq!(monome.substitute(vec![
+    ///     (X, 3u32),
+    ///     (Y, 2u32)
+    /// ]).unwrap(), 12u32);
+    ///
+    /// assert_eq!(monome.substitute(
+    ///     vec![(X, 1u32)]
+    /// ), Err(SubstitutionError::MissingVariable(Y)));
+    ///
+    /// assert_eq!(monome.substitute(
+    ///     vec![
+    ///         (X, 1u32),
+    ///         (Y, 1u32),
+    ///         (Y, 1u32),
+    ///     ]
+    /// ), Err(SubstitutionError::RepeatingVariable(Y)));
+    /// ```
+    pub fn substitute<U: Mul<Output = U> + One + Sized + Clone>(
+        &self,
+        substitute_list: Vec<(Var, U)>,
+    ) -> Result<<T as Mul<U>>::Output, SubstitutionError>
     where
         T: Mul<U>,
     {
         let mut var_map = HashMap::<usize, U>::default();
 
         for (var, val) in substitute_list.iter() {
-            if let Some(v) = var_map.insert(var.0, val.clone()) {
+            if let Some(_v) = var_map.insert(var.0, val.clone()) {
                 return Err(SubstitutionError::RepeatingVariable(*var));
             }
         }
@@ -304,24 +334,24 @@ impl<T: CommutativeSemiring> TypedMonome<T> {
         Ok(self.coeff * acc)
     }
 
-/// Typed monome substitution 
-///
-/// # Examples
-///
-/// ```
-/// use rust_polynomes::Coeff;
-/// use rust_polynomes::variables::{X, Y};
-/// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
-///
-/// let mut monome = Coeff(3u32) * X * Y * X;
-/// assert_eq!(monome.extract_variable(X), 2usize);
-/// assert_eq!(monome, TypedMonome {
-///     coeff: 3u32,
-///     vars: UntypedMonome {
-///         powers: vec![(1, 1)],
-///     }
-/// })
-/// ```
+    /// Typed monome substitution
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rust_polynomes::Coeff;
+    /// use rust_polynomes::variables::{X, Y};
+    /// use rust_polynomes::monomes::{UntypedMonome, TypedMonome};
+    ///
+    /// let mut monome = Coeff(3u32) * X * Y * X;
+    /// assert_eq!(monome.extract_variable(X), 2usize);
+    /// assert_eq!(monome, TypedMonome {
+    ///     coeff: 3u32,
+    ///     vars: UntypedMonome {
+    ///         powers: vec![(1, 1)],
+    ///     }
+    /// })
+    /// ```
     pub fn extract_variable(&mut self, var: Var) -> usize {
         let mut counter = 0usize;
         let counter_ref = &mut counter;
@@ -329,18 +359,22 @@ impl<T: CommutativeSemiring> TypedMonome<T> {
         *self = Self {
             coeff: self.coeff,
             vars: UntypedMonome {
-                powers: self.vars.powers.iter().filter_map(|link| {
-                    let (index, power) = *link;
-                    if index == var.0 {
-                        *counter_ref += power;
-                        return None;
-                    }
-                    Some((index, power))
-                }).collect(),
+                powers: self
+                    .vars
+                    .powers
+                    .iter()
+                    .filter_map(|link| {
+                        let (index, power) = *link;
+                        if index == var.0 {
+                            *counter_ref += power;
+                            return None;
+                        }
+                        Some((index, power))
+                    })
+                    .collect(),
             },
         };
 
         counter
     }
 }
-

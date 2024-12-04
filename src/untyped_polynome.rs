@@ -1,34 +1,52 @@
-use crate::variables::Var;
 use crate::untyped_monome::UntypedMonome;
+use crate::variables::Var;
 
-use std::fmt::Debug;
-use std::ops::{Mul, Add};
 use std::cmp::Eq;
-use std::vec::Vec;
 use std::convert::From;
 use std::default::Default;
+use std::fmt::Debug;
+use std::ops::{Add, Mul};
+use std::vec::Vec;
 
-use num_traits::pow::Pow;
 use duplicate::duplicate_item;
+use num_traits::pow::Pow;
 
+/// This struct s used as a result of arbitrary addition
+/// and multiplication of variables in a context where a coefficient with a fixed type was not yet
+/// provided
+///
+/// # Usage
+///
+/// ```
+/// use rust_polynomes::variables::{X, Y, Z};
+/// use rust_polynomes::polynomes::UntypedPolynome;
+///
+/// let mut first_polynome = X * Y * X + Z + Z * Y;
+/// first_polynome.order();
+///
+/// let mut second_polynome = Z * Y + Y * X * X + Z;
+/// second_polynome.order();
+///
+/// assert_eq!(first_polynome, second_polynome);
+/// ```
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct UntypedPolynome {
     pub monomes: Vec<UntypedMonome>,
 }
 
 impl UntypedPolynome {
-/// Sort monomes without adding them to each other
-///
-/// # Examples
-///
-/// ```
-/// use rust_polynomes::variables::{X, Y, Z};
-/// use rust_polynomes::polynomes::UntypedPolynome;
-///
-/// let mut A = Z * X + X * Y + Y * Z;
-/// A.order();
-/// assert_eq!(A, X * Y + X * Z + Y * Z);
-/// ```
+    /// Sort monomes without adding them to each other
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rust_polynomes::variables::{X, Y, Z};
+    /// use rust_polynomes::polynomes::UntypedPolynome;
+    ///
+    /// let mut A = Z * X + X * Y + Y * Z;
+    /// A.order();
+    /// assert_eq!(A, X * Y + X * Z + Y * Z);
+    /// ```
     pub fn order(&mut self) {
         self.monomes.sort();
     }
@@ -80,10 +98,14 @@ impl<T: Into<UntypedPolynome>> Add<T> for name {
     type Output = UntypedPolynome;
 
     fn add(self, rhs: T) -> Self::Output {
-        let lhs : UntypedPolynome = self.into();
-        let rhs_polynome : UntypedPolynome = rhs.into();
+        let lhs: UntypedPolynome = self.into();
+        let rhs_polynome: UntypedPolynome = rhs.into();
         UntypedPolynome {
-            monomes: lhs.monomes.into_iter().chain(rhs_polynome.monomes).collect(),
+            monomes: lhs
+                .monomes
+                .into_iter()
+                .chain(rhs_polynome.monomes)
+                .collect(),
         }
     }
 }
@@ -105,20 +127,26 @@ impl<T: Into<UntypedPolynome>> Add<T> for name {
 ///
 /// assert_eq!(first, second);
 /// ```
-impl<T : Into<UntypedPolynome>> Mul<T> for UntypedPolynome {
+impl<T: Into<UntypedPolynome>> Mul<T> for UntypedPolynome {
     type Output = UntypedPolynome;
 
     fn mul(self, arg: T) -> Self::Output {
-        let rhs : UntypedPolynome = arg.into();
+        let rhs: UntypedPolynome = arg.into();
         Self {
-            monomes: self.monomes.into_iter().flat_map(|monome| {
-                rhs.monomes.iter().map(move |rhs_monome| monome.clone() * rhs_monome.clone())
-            }).collect()
+            monomes: self
+                .monomes
+                .into_iter()
+                .flat_map(|monome| {
+                    rhs.monomes
+                        .iter()
+                        .map(move |rhs_monome| monome.clone() * rhs_monome.clone())
+                })
+                .collect(),
         }
     }
 }
 
-/// Raise polynom to power 
+/// Raise polynom to power
 ///
 /// # Examples
 ///

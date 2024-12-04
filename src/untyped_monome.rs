@@ -1,23 +1,26 @@
 use crate::variables::Var;
 
-use std::fmt::Debug;
-use std::ops::Mul;
-use std::cmp::{Eq, Ordering};
 use num_traits::pow::Pow;
-use std::vec::Vec;
+use std::cmp::{Eq, Ordering};
 use std::convert::From;
 use std::default::Default;
+use std::fmt::Debug;
+use std::ops::Mul;
+use std::vec::Vec;
 
-/// Product of variables with no coefficient
+/// This struct describes a monome in a context where a coefficient with a fixed type was not yet
+/// provided
 ///
-/// # Examples
+/// # Usage
 ///
-/// ``
+/// ```
 /// use rust_polynomes::variables::{X, Y};
 /// use rust_polynomes::monomes::UntypedMonome;
 ///
-/// let monome : UntypedMonome = X * Y * Y * Z;
-/// assert_eq!(monome, Y * Z * Z * X);
+/// let first_monome = X * Y * X;
+/// let second_monome = Y * X * X;
+///
+/// assert_eq!(first_monome, second_monome);
 /// ```
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct UntypedMonome {
@@ -89,9 +92,10 @@ impl<T: Into<UntypedMonome>> Mul<T> for UntypedMonome {
         let mut l = 0usize;
         let mut r = 0usize;
 
-        let rhs : UntypedMonome = arg.into();
+        let rhs: UntypedMonome = arg.into();
 
-        let mut result : Vec<(usize, usize)> = Vec::with_capacity(self.powers.len() + rhs.powers.len());
+        let mut result: Vec<(usize, usize)> =
+            Vec::with_capacity(self.powers.len() + rhs.powers.len());
 
         while l < self.powers.len() && r < rhs.powers.len() {
             match self.powers[l].0.cmp(&rhs.powers[r].0) {
@@ -121,9 +125,7 @@ impl<T: Into<UntypedMonome>> Mul<T> for UntypedMonome {
             r += 1;
         }
 
-        Self {
-            powers: result,
-        }
+        Self { powers: result }
     }
 }
 
@@ -141,7 +143,7 @@ impl<T: Into<UntypedMonome>> Mul<T> for Var {
     type Output = UntypedMonome;
 
     fn mul(self, rhs: T) -> Self::Output {
-        let monome : UntypedMonome = self.into();
+        let monome: UntypedMonome = self.into();
         monome * rhs
     }
 }
@@ -164,7 +166,11 @@ impl Pow<usize> for UntypedMonome {
 
     fn pow(self, pow: usize) -> Self {
         Self {
-            powers: self.powers.into_iter().map(|factor| (factor.0, factor.1 * pow)).collect(),
+            powers: self
+                .powers
+                .into_iter()
+                .map(|factor| (factor.0, factor.1 * pow))
+                .collect(),
         }
     }
 }
